@@ -1,0 +1,39 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+
+  // Genera Prisma Client en formato CommonJS para que sea compatible con tu NestJS actual
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model notifications {
+  id                 Int                  @id @default(autoincrement())
+  user_id            Int
+  title              String               @db.VarChar(255)
+  content            String
+  channel            String               @db.VarChar(50)
+  created_at         DateTime?            @default(now()) @db.Timestamp(6)
+  users              users                @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  notifications_logs notifications_logs[]
+}
+
+model notifications_logs {
+  id              Int           @id @default(autoincrement())
+  notification_id Int
+  status          String        @db.VarChar(50)
+  error_message   String?
+  created_at      DateTime?     @default(now()) @db.Timestamp(6)
+  notifications   notifications @relation(fields: [notification_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model users {
+  id            Int             @id @default(autoincrement())
+  auth0_id      String          @unique @db.VarChar(255)
+  email         String          @unique @db.VarChar(255)
+  notifications notifications[]
+}
