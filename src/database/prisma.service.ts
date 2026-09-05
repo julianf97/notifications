@@ -1,4 +1,5 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../../generated/prisma/client';
 
@@ -6,35 +7,39 @@ import { PrismaClient } from '../../generated/prisma/client';
 @Injectable()
 
 // Crea PrismaService heredando las funciones de PrismaClient
-export class PrismaService extends PrismaClient
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
+  // Recibe ConfigService para leer variables de entorno
+  constructor(configService: ConfigService) {
 
-  // Obliga a implementar métodos del ciclo de vida de NestJS
-  implements OnModuleInit, OnModuleDestroy {
-  // Se ejecuta cuando se crea una instancia de PrismaService
-  constructor() {
+    // Obtiene DATABASE_URL y lanza error si no existe
+    const databaseUrl = configService.getOrThrow<string>('DATABASE_URL');
 
     // Crea el adaptador que conecta Prisma con PostgreSQL
-    const adapter = new PrismaPg({
+    const adapter = new PrismaPg(
+      {
+        connectionString: databaseUrl,
+      },
 
-      // Usa la URL de conexión tomada de las variables de entorno
-      connectionString: process.env.DATABASE_URL as string,
-    });
+      // Indica que Prisma debe trabajar sobre el schema notifications
+      {
+        schema: 'notifications',
+      },
+    );
 
-    // Ejecuta el constructor de PrismaClient usando el adaptador de PostgreSQL
+    // Ejecuta el constructor de PrismaClient usando el adaptador
     super({ adapter });
   }
 
-  // Se ejecuta cuando Nest inicializa este servicio
+  // Abre la conexión cuando Nest inicia el servicio
   async onModuleInit(): Promise<void> {
-
-    // Abre la conexión de Prisma con la base de datos
     await this.$connect();
   }
 
-  // Se ejecuta cuando Nest destruye este servicio
+  // Cierra la conexión cuando Nest destruye el servicio
   async onModuleDestroy(): Promise<void> {
-
-    // Cierra la conexión de Prisma con la base de datos
     await this.$disconnect();
   }
 }

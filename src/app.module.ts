@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { PrismaModule } from "./database/prisma.module";
-import { UserModule } from "./modules/users/users.module";
+import { UsersModule } from "./modules/users/users.module";
 
 // Define el módulo principal de la aplicación
 @Module({
@@ -18,7 +18,7 @@ import { UserModule } from "./modules/users/users.module";
     PrismaModule,
 
     // Registra todo lo relacionado con usuarios
-    UserModule
+    UsersModule
   ],
 })
 

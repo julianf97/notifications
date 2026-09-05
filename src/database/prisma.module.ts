@@ -13,4 +13,6 @@ import { PrismaService } from "./prisma.service";
     exports: [PrismaService],
 })
 
+
+// Crea y exporta el módulo de Prisma
 export class PrismaModule {}
