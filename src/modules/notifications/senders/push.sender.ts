@@ -5,7 +5,7 @@ import {
 
 import type { NotificationSender } from './notification-sender.interface';
 
-import type { CreateNotificationDto } from '../dto/create/create.notification.dto';
+import type { CreateNotificationDto } from '../dto/create.notification.dto';
 
 import type { SendNotificationResult } from '../types/send-notification-result.type';
 

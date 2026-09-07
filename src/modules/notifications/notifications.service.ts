@@ -7,7 +7,7 @@ import { PrismaService } from '../../database/prisma.service';
 
 import type { notifications } from '../../../generated/prisma/client';
 
-import type { CreateNotificationDto } from './dto/create/create.notification.dto';
+import type { CreateNotificationDto } from './dto/create.notification.dto';
 
 import type { UpdateNotificationDto } from './dto/update-notification.dto';
 

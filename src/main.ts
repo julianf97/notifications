@@ -1,6 +1,10 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import {
+  DocumentBuilder,
+  SwaggerModule,
+} from '@nestjs/swagger';
 
 // Función principal que inicia la aplicación
 async function bootstrap() {
@@ -22,7 +26,6 @@ async function bootstrap() {
     }),
   );
 
-
   // Habilita CORS para permitir peticiones desde el frontend
   app.enableCors({
 
@@ -30,8 +33,37 @@ async function bootstrap() {
     origin: 'http://localhost:5173',
   });
 
+  // Configura la documentación de Swagger
+  const swaggerConfig =
+    new DocumentBuilder()
+      .setTitle('Notifications API')
+      .setDescription(
+        'API para gestionar y enviar notificaciones por Email, SMS y Push',
+      )
+      .setVersion('1.0')
+
+      // Habilita autenticación Bearer en Swagger
+      .addBearerAuth()
+      .build();
+
+  // Genera el documento de Swagger
+  const swaggerDocument =
+    SwaggerModule.createDocument(
+      app,
+      swaggerConfig,
+    );
+
+  // Publica Swagger en /docs
+  SwaggerModule.setup(
+    'docs',
+    app,
+    swaggerDocument,
+  );
+
   // Inicia el servidor en PORT o usa 3000 por defecto
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(
+    process.env.PORT ?? 3000,
+  );
 }
 
 // Ejecuta la función que inicia la aplicación

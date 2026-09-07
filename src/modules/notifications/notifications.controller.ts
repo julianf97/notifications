@@ -11,17 +11,36 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
+import {
+  ApiBearerAuth,
+  ApiTags,
+} from '@nestjs/swagger';
+
 import { AuthGuard } from '../../auth/auth.guard';
+
+import type { AuthenticatedRequest } from '../../auth/types/authenticated-request.type';
 
 import { UsersService } from '../users/users.service';
 
 import { NotificationsService } from './notifications.service';
 
-import { CreateNotificationDto } from './dto/create/create.notification.dto';
+import { CreateNotificationDto } from './dto/create.notification.dto';
 
 import { UpdateNotificationDto } from './dto/update-notification.dto';
 
-import type { AuthenticatedRequest } from '../../auth/types/authenticated-request.type';
+import {
+  ApiCreateNotification,
+  ApiDeleteNotification,
+  ApiGetNotificationById,
+  ApiGetNotifications,
+  ApiUpdateNotification,
+} from './swagger/notifications.swagger';
+
+// Agrupa los endpoints de notificaciones en Swagger
+@ApiTags('notifications')
+
+// Indica que todos los endpoints requieren Bearer Token
+@ApiBearerAuth()
 
 // Define la ruta base /notifications
 @Controller('notifications')
@@ -49,6 +68,9 @@ export class NotificationsController {
     );
   }
 
+  // Documenta el endpoint POST /notifications
+  @ApiCreateNotification()
+
   // Atiende la petición POST /notifications
   @Post()
 
@@ -74,6 +96,9 @@ export class NotificationsController {
     );
   }
 
+  // Documenta el endpoint GET /notifications
+  @ApiGetNotifications()
+
   // Atiende la petición GET /notifications
   @Get()
 
@@ -93,6 +118,9 @@ export class NotificationsController {
       user.id,
     );
   }
+
+  // Documenta el endpoint GET /notifications/:id
+  @ApiGetNotificationById()
 
   // Atiende la petición GET /notifications/:id
   @Get(':id')
@@ -118,6 +146,9 @@ export class NotificationsController {
       notificationId,
     );
   }
+
+  // Documenta el endpoint PATCH /notifications/:id
+  @ApiUpdateNotification()
 
   // Atiende la petición PATCH /notifications/:id
   @Patch(':id')
@@ -148,6 +179,9 @@ export class NotificationsController {
       body,
     );
   }
+
+  // Documenta el endpoint DELETE /notifications/:id
+  @ApiDeleteNotification()
 
   // Atiende la petición DELETE /notifications/:id
   @Delete(':id')

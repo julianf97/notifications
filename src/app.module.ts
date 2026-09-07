@@ -4,6 +4,7 @@ import { PrismaModule } from "./database/prisma.module";
 import { UsersModule } from "./modules/users/users.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 
+
 // Define el módulo principal de la aplicación
 @Module({
   // Importa los módulos que usa la aplicación
