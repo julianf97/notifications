@@ -14,6 +14,9 @@ async function bootstrap() {
       // Elimina del body las propiedades que no estén definidas en el DTO
       whitelist: true,
 
+      // Devuelve 400 si el body contiene propiedades que no existen en el DTO
+      forbidNonWhitelisted: true,
+
       // Transforma automáticamente los datos recibidos al tipo del DTO correspondiente
       transform: true,
     }),

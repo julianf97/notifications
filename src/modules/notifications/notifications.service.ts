@@ -9,7 +9,11 @@ import type { notifications } from '../../../generated/prisma/client';
 
 import type { CreateNotificationDto } from './dto/create/create.notification.dto';
 
+import type { UpdateNotificationDto } from './dto/update-notification.dto';
+
 import { NotificationSenderFactory } from './factories/notification-sender.factory';
+
+import type { DeleteNotificationResponse } from './types/delete-notification-response.type';
 
 // Permite que NestJS administre e inyecte esta clase
 @Injectable()
@@ -21,7 +25,7 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationSenderFactory: NotificationSenderFactory,
-  ) {}
+  ) { }
 
   // Crea una notificación, intenta enviarla y registra el resultado
   async createNotification(
@@ -30,6 +34,13 @@ export class NotificationsService {
   ): Promise<notifications> {
 
     // Guarda solamente los datos generales de la notificación
+    // Primero valida que exista una estrategia para el canal
+    const sender =
+      this.notificationSenderFactory.create(
+        data.channel,
+      );
+
+    // Después guarda la notificación
     const notification =
       await this.prisma.notifications.create({
         data: {
@@ -39,12 +50,6 @@ export class NotificationsService {
           channel: data.channel,
         },
       });
-
-    // Obtiene la estrategia correspondiente al canal
-    const sender =
-      this.notificationSenderFactory.create(
-        data.channel,
-      );
 
     try {
 
@@ -130,5 +135,84 @@ export class NotificationsService {
 
     // Devuelve la notificación encontrada
     return notification;
+  }
+
+  // Modifica una notificación específica de un usuario
+  async updateNotification(
+    userId: number,
+    notificationId: number,
+    data: UpdateNotificationDto,
+  ): Promise<notifications> {
+
+    // Busca la notificación y verifica que pertenezca al usuario
+    const notification =
+      await this.prisma.notifications.findFirst({
+        where: {
+          id: notificationId,
+          user_id: userId,
+        },
+      });
+
+    // Si no existe o pertenece a otro usuario devuelve 404
+    if (!notification) {
+      throw new NotFoundException(
+        'Notificación no encontrada',
+      );
+    }
+
+    // Actualiza solamente los campos recibidos
+    return this.prisma.notifications.update({
+      where: {
+        id: notificationId,
+      },
+      data: {
+        title: data.title,
+        content: data.content,
+        channel: data.channel,
+      },
+    });
+  }
+
+  // Elimina una notificación específica de un usuario
+  async deleteNotification(
+    userId: number,
+    notificationId: number,
+  ): Promise<DeleteNotificationResponse> {
+
+    // Busca la notificación y verifica que pertenezca al usuario
+    const notification =
+      await this.prisma.notifications.findFirst({
+        where: {
+          id: notificationId,
+          user_id: userId,
+        },
+      });
+
+    // Si no existe o pertenece a otro usuario devuelve 404
+    if (!notification) {
+      throw new NotFoundException(
+        'Notificación no encontrada',
+      );
+    }
+
+    // Elimina los logs relacionados con la notificación
+    await this.prisma.notifications_logs.deleteMany({
+      where: {
+        notification_id: notificationId,
+      },
+    });
+
+    // Elimina la notificación
+    await this.prisma.notifications.delete({
+      where: {
+        id: notificationId,
+      },
+    });
+
+    // Devuelve una respuesta definida
+    return {
+      message: 'Notificación eliminada correctamente',
+      id: notificationId,
+    };
   }
 }

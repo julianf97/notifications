@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -11,11 +13,13 @@ import {
 
 import { AuthGuard } from '../../auth/auth.guard';
 
-import { PrismaService } from '../../database/prisma.service';
+import { UsersService } from '../users/users.service';
 
 import { NotificationsService } from './notifications.service';
 
 import { CreateNotificationDto } from './dto/create/create.notification.dto';
+
+import { UpdateNotificationDto } from './dto/update-notification.dto';
 
 import type { AuthenticatedRequest } from '../../auth/types/authenticated-request.type';
 
@@ -31,8 +35,19 @@ export class NotificationsController {
   // Recibe los servicios necesarios para trabajar con notificaciones
   constructor(
     private readonly notificationsService: NotificationsService,
-    private readonly prisma: PrismaService,
+    private readonly usersService: UsersService,
   ) {}
+
+  // Obtiene el usuario local a partir del usuario autenticado de Auth0
+  private async getAuthenticatedUser(
+    request: AuthenticatedRequest,
+  ) {
+
+    // Busca el usuario local usando el sub del token
+    return this.usersService.findByAuth0Id(
+      request.auth.payload.sub,
+    );
+  }
 
   // Atiende la petición POST /notifications
   @Post()
@@ -46,17 +61,11 @@ export class NotificationsController {
     body: CreateNotificationDto,
   ) {
 
-    // Obtiene el id de Auth0 desde el token
-    const auth0Id =
-      request.auth.payload.sub;
-
-    // Busca el usuario local relacionado con Auth0
+    // Obtiene el usuario autenticado
     const user =
-      await this.prisma.users.findUniqueOrThrow({
-        where: {
-          auth0_id: auth0Id,
-        },
-      });
+      await this.getAuthenticatedUser(
+        request,
+      );
 
     // Crea la notificación usando el id local del usuario
     return this.notificationsService.createNotification(
@@ -73,17 +82,11 @@ export class NotificationsController {
     @Req() request: AuthenticatedRequest,
   ) {
 
-    // Obtiene el id de Auth0 desde el token
-    const auth0Id =
-      request.auth.payload.sub;
-
-    // Busca el usuario local relacionado con Auth0
+    // Obtiene el usuario autenticado
     const user =
-      await this.prisma.users.findUniqueOrThrow({
-        where: {
-          auth0_id: auth0Id,
-        },
-      });
+      await this.getAuthenticatedUser(
+        request,
+      );
 
     // Devuelve solamente las notificaciones del usuario autenticado
     return this.notificationsService.getNotificationsByUser(
@@ -103,20 +106,69 @@ export class NotificationsController {
     notificationId: number,
   ) {
 
-    // Obtiene el id de Auth0 desde el token
-    const auth0Id =
-      request.auth.payload.sub;
-
-    // Busca el usuario local relacionado con Auth0
+    // Obtiene el usuario autenticado
     const user =
-      await this.prisma.users.findUniqueOrThrow({
-        where: {
-          auth0_id: auth0Id,
-        },
-      });
+      await this.getAuthenticatedUser(
+        request,
+      );
 
     // Busca la notificación y valida que pertenezca al usuario
     return this.notificationsService.getNotificationById(
+      user.id,
+      notificationId,
+    );
+  }
+
+  // Atiende la petición PATCH /notifications/:id
+  @Patch(':id')
+
+  // Modifica una notificación específica del usuario autenticado
+  async updateNotification(
+    @Req() request: AuthenticatedRequest,
+
+    // Obtiene el id de la URL y lo convierte a number
+    @Param('id', ParseIntPipe)
+    notificationId: number,
+
+    // Recibe los campos que se quieren modificar
+    @Body()
+    body: UpdateNotificationDto,
+  ) {
+
+    // Obtiene el usuario autenticado
+    const user =
+      await this.getAuthenticatedUser(
+        request,
+      );
+
+    // Modifica solamente una notificación que pertenezca al usuario
+    return this.notificationsService.updateNotification(
+      user.id,
+      notificationId,
+      body,
+    );
+  }
+
+  // Atiende la petición DELETE /notifications/:id
+  @Delete(':id')
+
+  // Elimina una notificación específica del usuario autenticado
+  async deleteNotification(
+    @Req() request: AuthenticatedRequest,
+
+    // Obtiene el id de la URL y lo convierte a number
+    @Param('id', ParseIntPipe)
+    notificationId: number,
+  ) {
+
+    // Obtiene el usuario autenticado
+    const user =
+      await this.getAuthenticatedUser(
+        request,
+      );
+
+    // Elimina solamente una notificación que pertenezca al usuario
+    return this.notificationsService.deleteNotification(
       user.id,
       notificationId,
     );

@@ -1,4 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+} from '@nestjs/common';
 
 import type { NotificationSender } from './notification-sender.interface';
 
@@ -20,9 +23,23 @@ export class PushSender implements NotificationSender {
     data: CreateNotificationDto,
   ): Promise<SendNotificationResult> {
 
+    // Limpia espacios al principio y al final
+    const deviceToken =
+      data.recipient.trim();
+
+    // Valida un formato mínimo para el token del dispositivo
+    if (
+      deviceToken.length < 10 ||
+      deviceToken.includes(' ')
+    ) {
+      throw new BadRequestException(
+        'El token del dispositivo no tiene un formato válido',
+      );
+    }
+
     // Genera el payload de la notificación Push
     const payload = {
-      deviceToken: data.recipient,
+      deviceToken,
       content: data.content,
     };
 
@@ -37,8 +54,8 @@ export class PushSender implements NotificationSender {
 
     // Devuelve el resultado del envío
     return {
-      status: 'sent',
-      recipient: data.recipient,
+      status,
+      recipient: deviceToken,
     };
   }
 }

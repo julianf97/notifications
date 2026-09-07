@@ -1,6 +1,7 @@
 import {
   Inject,
   Injectable,
+  BadRequestException
 } from '@nestjs/common';
 
 import type { NotificationSender } from '../senders/notification-sender.interface';
@@ -33,7 +34,7 @@ export class NotificationSenderFactory {
 
     // Verifica que exista una estrategia para ese canal
     if (!sender) {
-      throw new Error(
+      throw new BadRequestException(
         `Canal de notificación no soportado: ${channel}`,
       );
     }

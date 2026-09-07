@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import type { users } from '../../../generated/prisma/client';
 
@@ -9,10 +9,10 @@ import type { users } from '../../../generated/prisma/client';
 export class UsersService {
 
   // Recibe PrismaService para consultar la base de datos
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   // Crea el usuario si no existe o devuelve el existente
-  async syncUser(auth0Id: string,email: string): Promise<users> {
+  async syncUser(auth0Id: string, email: string): Promise<users> {
 
     console.log(
       // Indica que el usuario llegó al servicio
@@ -35,6 +35,8 @@ export class UsersService {
       create: { auth0_id: auth0Id, email: email }
     });
 
+
+
     console.log(
       // Confirma que Prisma terminó la operación
       '🟩 BACK 17 - Usuario sincronizado en PostgreSQL',
@@ -46,6 +48,30 @@ export class UsersService {
     );
 
     // Devuelve el usuario al controller
+    return user;
+  }
+
+  // Busca un usuario local usando su id de Auth0
+  async findByAuth0Id(
+    auth0Id: string,
+  ) {
+
+    // Busca el usuario relacionado con Auth0
+    const user =
+      await this.prisma.users.findUnique({
+        where: {
+          auth0_id: auth0Id,
+        },
+      });
+
+    // Si el usuario no existe en la base local devuelve 404
+    if (!user) {
+      throw new NotFoundException(
+        'Usuario no encontrado',
+      );
+    }
+
+    // Devuelve el usuario encontrado
     return user;
   }
 }
