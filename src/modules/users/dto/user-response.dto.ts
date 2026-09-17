@@ -1,12 +1,18 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export class UserResponseDto {
-  @ApiProperty({ example: 4 })
+  @ApiProperty({
+    description: 'Identificador local del usuario',
+  })
   id!: number;
 
-  @ApiProperty({ example: 'auth0|usuario-prueba' })
+  @ApiProperty({
+    description: 'Identificador del usuario en Auth0',
+  })
   auth0_id!: string;
 
-  @ApiProperty({ example: 'usuario-prueba@test.com' })
+  @ApiProperty({
+    description: 'Email obtenido desde Auth0',
+  })
   email!: string;
 }
