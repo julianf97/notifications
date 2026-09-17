@@ -1,47 +1,37 @@
+import { applyDecorators } from '@nestjs/common';
 import {
-  applyDecorators,
-} from '@nestjs/common';
-
-import {
+  ApiCreatedResponse,
+  ApiExtraModels,
   ApiOperation,
-  ApiResponse,
+  ApiUnauthorizedResponse,
+  getSchemaPath,
 } from '@nestjs/swagger';
+import { UserResponseDto } from '../../users/dto/user-response.dto';
 
-// Documenta POST /users/sync
 export function ApiSyncUser() {
   return applyDecorators(
-
-    // Describe qué hace el endpoint
+    ApiExtraModels(UserResponseDto),
     ApiOperation({
       summary: 'Sincronizar usuario',
       description:
-        'Obtiene el usuario autenticado desde Auth0 y lo sincroniza con la base de datos local.',
+        'Obtiene auth0_id desde el access token y el email desde Auth0 /userinfo. No recibe body.',
     }),
-
-    // Usuario sincronizado correctamente
-    ApiResponse({
-      status: 201,
-      description:
-        'Usuario sincronizado correctamente',
+    ApiCreatedResponse({
+      description: 'Usuario sincronizado correctamente',
       schema: {
+        allOf: [{ $ref: getSchemaPath(UserResponseDto) }],
         example: {
-          id: 2,
-          auth0_id: 'auth0|6a8cdc7de472e483bc883fa5',
-          email: 'usuario@gmail.com',
+          id: 4,
+          auth0_id: 'auth0|usuario-prueba',
+          email: 'usuario-prueba@test.com',
         },
       },
     }),
-
-    // Token faltante o inválido
-    ApiResponse({
-      status: 401,
-      description:
-        'No autorizado',
-      schema: {
-        example: {
-          message: 'Unauthorized',
-          statusCode: 401,
-        },
+    ApiUnauthorizedResponse({
+      description: 'Token faltante o inválido',
+      example: {
+        message: 'Unauthorized',
+        statusCode: 401,
       },
     }),
   );
