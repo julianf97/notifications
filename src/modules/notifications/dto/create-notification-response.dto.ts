@@ -1,23 +1,25 @@
-// Define la respuesta que devuelve la API al crear una notificación
+import { ApiProperty } from '@nestjs/swagger';
+
 export class CreateNotificationResponseDto {
-  // Identificador de la notificación creada
+  @ApiProperty({ example: 1 })
   id!: number;
 
-  // Título de la notificación
+  @ApiProperty({ example: 4 })
+  user_id!: number;
+
+  @ApiProperty({ example: 'Email de prueba' })
   title!: string;
 
-  // Contenido de la notificación
+  @ApiProperty({ example: 'Contenido de prueba por Email' })
   content!: string;
 
-  // Canal utilizado
+  @ApiProperty({ enum: ['email', 'sms', 'push'], example: 'email' })
   channel!: string;
 
-  // Estado del envío
-  status!: string;
-
-  // Destinatario utilizado en el envío
-  recipient?: string;
-
-  // Fecha de creación
-  createdAt!: Date;
+  @ApiProperty({
+    format: 'date-time',
+    nullable: true,
+    example: '2026-09-17T18:30:00.000Z',
+  })
+  created_at!: Date | null;
 }

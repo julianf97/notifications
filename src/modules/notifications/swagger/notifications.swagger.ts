@@ -1,773 +1,293 @@
+import { applyDecorators } from '@nestjs/common';
 import {
-  applyDecorators,
-} from '@nestjs/common';
-
-import {
+  ApiBadRequestResponse,
   ApiBody,
+  ApiCreatedResponse,
+  ApiExtraModels,
+  ApiNotFoundResponse,
+  ApiOkResponse,
   ApiOperation,
   ApiParam,
-  ApiResponse,
+  ApiUnauthorizedResponse,
+  getSchemaPath,
 } from '@nestjs/swagger';
+import { CreateNotificationDto } from '../dto/create.notification.dto';
+import { UpdateNotificationDto } from '../dto/update-notification.dto';
+import { CreateNotificationResponseDto } from '../dto/create-notification-response.dto';
+import { DeleteNotificationResponseDto } from '../dto/delete-notification-response.dto';
 
-// Documenta POST /notifications
+const notificationExample = {
+  id: 1,
+  user_id: 4,
+  title: 'Email de prueba',
+  content: 'Contenido de prueba por Email',
+  channel: 'email',
+  created_at: '2026-09-17T18:30:00.000Z',
+};
+
+const unauthorizedExample = {
+  message: 'Unauthorized',
+  statusCode: 401,
+};
+
+const userNotFoundExample = {
+  message: 'Usuario no encontrado',
+  error: 'Not Found',
+  statusCode: 404,
+};
+
+const notificationNotFoundExample = {
+  message: 'Notificación no encontrada',
+  error: 'Not Found',
+  statusCode: 404,
+};
+
+const invalidIdExample = {
+  message: 'Validation failed (numeric string is expected)',
+  error: 'Bad Request',
+  statusCode: 400,
+};
+
+function notificationModels() {
+  return ApiExtraModels(
+    CreateNotificationDto,
+    UpdateNotificationDto,
+    CreateNotificationResponseDto,
+    DeleteNotificationResponseDto,
+  );
+}
+
 export function ApiCreateNotification() {
   return applyDecorators(
-
-    // Describe qué hace el endpoint
+    notificationModels(),
     ApiOperation({
       summary: 'Crear una notificación',
       description:
-        'Crea una notificación para el usuario autenticado y ejecuta el envío según el canal seleccionado.',
+        'Crea una notificación para el usuario autenticado, la envía mediante el canal seleccionado y registra el resultado.',
     }),
-
-    // Documenta el body
     ApiBody({
-      schema: {
-        type: 'object',
-
-        required: [
-          'title',
-          'content',
-          'channel',
-          'recipient',
-        ],
-
-        properties: {
-          title: {
-            type: 'string',
-            description:
-              'Título de la notificación',
-            example:
-              'Email de prueba',
-          },
-
-          content: {
-            type: 'string',
-            description:
-              'Contenido de la notificación',
-            example:
-              'Contenido de prueba por Email',
-          },
-
-          channel: {
-            type: 'string',
-            description:
-              'Canal utilizado para enviar la notificación',
-            enum: [
-              'email',
-              'sms',
-              'push',
-            ],
-            example:
-              'email',
-          },
-
-          recipient: {
-            type: 'string',
-            description:
-              'Email, número telefónico o device token según el canal',
-            example:
-              'usuario@gmail.com',
-          },
-        },
-      },
-
-      // Ejemplos para cada canal
+      required: true,
+      schema: { $ref: getSchemaPath(CreateNotificationDto) },
       examples: {
         email: {
-          summary:
-            'Notificación por Email',
+          summary: 'Notificación por Email',
           value: {
-            title:
-              'Email de prueba',
-            content:
-              'Contenido de prueba por Email',
-            channel:
-              'email',
-            recipient:
-              'usuario@gmail.com',
+            title: 'Email de prueba',
+            content: 'Contenido de prueba por Email',
+            channel: 'email',
+            recipient: 'usuario-prueba@test.com',
           },
         },
-
         sms: {
-          summary:
-            'Notificación por SMS',
+          summary: 'Notificación por SMS',
           value: {
-            title:
-              'SMS de prueba',
-            content:
-              'Contenido de prueba por SMS',
-            channel:
-              'sms',
-            recipient:
-              '+543364024379',
+            title: 'SMS de prueba',
+            content: 'Contenido de prueba por SMS',
+            channel: 'sms',
+            recipient: '+543364024379',
           },
         },
-
         push: {
-          summary:
-            'Notificación Push',
+          summary: 'Notificación Push',
           value: {
-            title:
-              'Push de prueba',
-            content:
-              'Contenido de prueba Push',
-            channel:
-              'push',
-            recipient:
-              'device-token-123456',
+            title: 'Push de prueba',
+            content: 'Contenido de prueba Push',
+            channel: 'push',
+            recipient: 'device-token-123456',
           },
         },
       },
     }),
-
-    // Notificación creada correctamente
-    ApiResponse({
-      status: 201,
-      description:
-        'Notificación creada correctamente',
+    ApiCreatedResponse({
+      description: 'Notificación creada correctamente',
       schema: {
-        example: {
-          id: 28,
-          user_id: 2,
-          title:
-            'Email de prueba',
-          content:
-            'Contenido de prueba por Email',
-          channel:
-            'email',
-          created_at:
-            '2026-09-07T18:30:00.000Z',
-        },
+        allOf: [{ $ref: getSchemaPath(CreateNotificationResponseDto) }],
+        example: notificationExample,
       },
     }),
-
-    // Datos inválidos
-    ApiResponse({
-      status: 400,
-      description:
-        'Datos de la notificación inválidos',
+    ApiBadRequestResponse({
+      description: 'Body, canal o destinatario inválido',
       content: {
         'application/json': {
           examples: {
-
-            // Error del ValidationPipe
-            recipientRequired: {
-              summary:
-                'Recipient faltante',
+            missingRecipient: {
+              summary: 'Falta recipient',
               value: {
                 message: [
                   'recipient should not be empty',
                   'recipient must be a string',
                 ],
-                error:
-                  'Bad Request',
-                statusCode:
-                  400,
+                error: 'Bad Request',
+                statusCode: 400,
               },
             },
-
-            // Error del EmailSender
-            invalidEmail: {
-              summary:
-                'Email inválido',
-              value: {
-                message:
-                  'El formato del email no es válido',
-                error:
-                  'Bad Request',
-                statusCode:
-                  400,
-              },
-            },
-
-            // Error del SmsSender
-            invalidSmsPhone: {
-              summary:
-                'Número de teléfono inválido',
-              value: {
-                message:
-                  'El número de teléfono no tiene un formato válido',
-                error:
-                  'Bad Request',
-                statusCode:
-                  400,
-              },
-            },
-
-            // Error del PushSender
-            invalidPushToken: {
-              summary:
-                'Device token inválido',
-              value: {
-                message:
-                  'El token del dispositivo no tiene un formato válido',
-                error:
-                  'Bad Request',
-                statusCode:
-                  400,
-              },
-            },
-
-            // Error de la Factory
             unsupportedChannel: {
-              summary:
-                'Canal no soportado',
+              summary: 'Canal no soportado',
               value: {
-                message:
-                  'Canal de notificación no soportado: whatsapp',
-                error:
-                  'Bad Request',
-                statusCode:
-                  400,
+                message: 'Canal de notificación no soportado: whatsapp',
+                error: 'Bad Request',
+                statusCode: 400,
               },
             },
           },
         },
       },
     }),
-
-    // Token faltante o inválido
-    ApiResponse({
-      status: 401,
-      description:
-        'No autorizado',
-      schema: {
-        example: {
-          message:
-            'Unauthorized',
-          statusCode:
-            401,
-        },
-      },
-    }),
-
-    // Usuario no sincronizado
-    ApiResponse({
-      status: 404,
-      description:
-        'Usuario no encontrado',
-      schema: {
-        example: {
-          message:
-            'Usuario no encontrado',
-          error:
-            'Not Found',
-          statusCode:
-            404,
-        },
-      },
+    ApiUnauthorizedResponse({ example: unauthorizedExample }),
+    ApiNotFoundResponse({
+      description: 'Usuario no sincronizado',
+      example: userNotFoundExample,
     }),
   );
 }
 
-// Documenta GET /notifications
 export function ApiGetNotifications() {
   return applyDecorators(
-
-    // Describe qué hace el endpoint
+    notificationModels(),
     ApiOperation({
-      summary:
-        'Obtener todas las notificaciones',
+      summary: 'Obtener todas las notificaciones',
       description:
-        'Devuelve únicamente las notificaciones pertenecientes al usuario autenticado.',
+        'Devuelve únicamente las notificaciones del usuario autenticado, ordenadas desde la más reciente.',
     }),
-
-    // Lista obtenida correctamente
-    ApiResponse({
-      status: 200,
-      description:
-        'Notificaciones obtenidas correctamente',
+    ApiOkResponse({
+      description: 'Notificaciones obtenidas correctamente',
       schema: {
-        type:
-          'array',
-
-        items: {
-          type:
-            'object',
-
-          properties: {
-            id: {
-              type:
-                'number',
-              example:
-                28,
-            },
-
-            user_id: {
-              type:
-                'number',
-              example:
-                2,
-            },
-
-            title: {
-              type:
-                'string',
-              example:
-                'Email de prueba',
-            },
-
-            content: {
-              type:
-                'string',
-              example:
-                'Contenido de prueba por Email',
-            },
-
-            channel: {
-              type:
-                'string',
-              example:
-                'email',
-            },
-
-            created_at: {
-              type:
-                'string',
-              format:
-                'date-time',
-              nullable:
-                true,
-              example:
-                '2026-09-07T18:30:00.000Z',
-            },
+        type: 'array',
+        items: { $ref: getSchemaPath(CreateNotificationResponseDto) },
+        example: [
+          notificationExample,
+          {
+            id: 2,
+            user_id: 4,
+            title: 'SMS de prueba',
+            content: 'Contenido de prueba por SMS',
+            channel: 'sms',
+            created_at: '2026-09-17T18:35:00.000Z',
           },
-        },
+        ],
       },
     }),
-
-    // Token faltante o inválido
-    ApiResponse({
-      status: 401,
-      description:
-        'No autorizado',
-      schema: {
-        example: {
-          message:
-            'Unauthorized',
-          statusCode:
-            401,
-        },
-      },
-    }),
-
-    // Usuario no sincronizado
-    ApiResponse({
-      status: 404,
-      description:
-        'Usuario no encontrado',
-      schema: {
-        example: {
-          message:
-            'Usuario no encontrado',
-          error:
-            'Not Found',
-          statusCode:
-            404,
-        },
-      },
+    ApiUnauthorizedResponse({ example: unauthorizedExample }),
+    ApiNotFoundResponse({
+      description: 'Usuario no sincronizado',
+      example: userNotFoundExample,
     }),
   );
 }
 
-// Documenta GET /notifications/:id
 export function ApiGetNotificationById() {
   return applyDecorators(
-
-    // Describe qué hace el endpoint
+    notificationModels(),
     ApiOperation({
-      summary:
-        'Obtener una notificación por id',
+      summary: 'Obtener una notificación por id',
       description:
         'Devuelve una notificación solamente si pertenece al usuario autenticado.',
     }),
-
-    // Documenta el id
     ApiParam({
-      name:
-        'id',
-      type:
-        Number,
-      example:
-        28,
-      description:
-        'Id de la notificación',
+      name: 'id',
+      type: Number,
+      example: 1,
+      description: 'Id de la notificación',
     }),
-
-    // Notificación encontrada
-    ApiResponse({
-      status: 200,
-      description:
-        'Notificación obtenida correctamente',
+    ApiOkResponse({
+      description: 'Notificación obtenida correctamente',
       schema: {
-        example: {
-          id:
-            28,
-          user_id:
-            2,
-          title:
-            'Email de prueba',
-          content:
-            'Contenido de prueba por Email',
-          channel:
-            'email',
-          created_at:
-            '2026-09-07T18:30:00.000Z',
-        },
+        allOf: [{ $ref: getSchemaPath(CreateNotificationResponseDto) }],
+        example: notificationExample,
       },
     }),
-
-    // Id inválido
-    ApiResponse({
-      status: 400,
-      description:
-        'Id inválido',
-      schema: {
-        example: {
-          message:
-            'Validation failed (numeric string is expected)',
-          error:
-            'Bad Request',
-          statusCode:
-            400,
-        },
-      },
-    }),
-
-    // Token faltante o inválido
-    ApiResponse({
-      status: 401,
-      description:
-        'No autorizado',
-      schema: {
-        example: {
-          message:
-            'Unauthorized',
-          statusCode:
-            401,
-        },
-      },
-    }),
-
-    // Notificación inexistente o de otro usuario
-    ApiResponse({
-      status: 404,
-      description:
-        'Notificación no encontrada',
-      schema: {
-        example: {
-          message:
-            'Notificación no encontrada',
-          error:
-            'Not Found',
-          statusCode:
-            404,
-        },
-      },
-    }),
+    ApiBadRequestResponse({ example: invalidIdExample }),
+    ApiUnauthorizedResponse({ example: unauthorizedExample }),
+    ApiNotFoundResponse({ example: notificationNotFoundExample }),
   );
 }
 
-// Documenta PATCH /notifications/:id
 export function ApiUpdateNotification() {
   return applyDecorators(
-
-    // Describe qué hace el endpoint
+    notificationModels(),
     ApiOperation({
-      summary:
-        'Modificar una notificación',
+      summary: 'Modificar una notificación',
       description:
-        'Modifica una notificación solamente si pertenece al usuario autenticado.',
+        'Modifica solamente los campos enviados de una notificación perteneciente al usuario autenticado.',
     }),
-
-    // Documenta el id
     ApiParam({
-      name:
-        'id',
-      type:
-        Number,
-      example:
-        28,
-      description:
-        'Id de la notificación',
+      name: 'id',
+      type: Number,
+      example: 1,
+      description: 'Id de la notificación',
     }),
-
-    // Documenta el body
     ApiBody({
-      schema: {
-        type:
-          'object',
-
-        properties: {
-          title: {
-            type:
-              'string',
-            description:
-              'Nuevo título de la notificación',
-            example:
-              'Título actualizado',
-          },
-
-          content: {
-            type:
-              'string',
-            description:
-              'Nuevo contenido de la notificación',
-            example:
-              'Contenido actualizado',
-          },
-
-          channel: {
-            type:
-              'string',
-            description:
-              'Nuevo canal de la notificación',
-            enum: [
-              'email',
-              'sms',
-              'push',
-            ],
-            example:
-              'email',
-          },
-        },
-      },
-
+      required: true,
+      schema: { $ref: getSchemaPath(UpdateNotificationDto) },
       examples: {
         complete: {
-          summary:
-            'Modificar varios campos',
+          summary: 'Modificar todos los campos permitidos',
           value: {
-            title:
-              'Título actualizado',
-            content:
-              'Contenido actualizado',
-            channel:
-              'email',
+            title: 'Título actualizado',
+            content: 'Contenido actualizado',
+            channel: 'email',
           },
         },
-
         titleOnly: {
-          summary:
-            'Modificar solamente el título',
-          value: {
-            title:
-              'Nuevo título',
-          },
+          summary: 'Modificar solamente el título',
+          value: { title: 'Nuevo título' },
         },
-
         contentOnly: {
-          summary:
-            'Modificar solamente el contenido',
-          value: {
-            content:
-              'Nuevo contenido',
-          },
+          summary: 'Modificar solamente el contenido',
+          value: { content: 'Nuevo contenido' },
+        },
+        channelOnly: {
+          summary: 'Modificar solamente el canal',
+          value: { channel: 'push' },
         },
       },
     }),
-
-    // Notificación modificada
-    ApiResponse({
-      status: 200,
-      description:
-        'Notificación modificada correctamente',
+    ApiOkResponse({
+      description: 'Notificación modificada correctamente',
       schema: {
+        allOf: [{ $ref: getSchemaPath(CreateNotificationResponseDto) }],
         example: {
-          id:
-            28,
-          user_id:
-            2,
-          title:
-            'Título actualizado',
-          content:
-            'Contenido actualizado',
-          channel:
-            'email',
-          created_at:
-            '2026-09-07T18:30:00.000Z',
+          ...notificationExample,
+          title: 'Título actualizado',
+          content: 'Contenido actualizado',
         },
       },
     }),
-
-    // Datos inválidos
-    ApiResponse({
-      status: 400,
-      description:
-        'Datos inválidos',
-      content: {
-        'application/json': {
-          examples: {
-
-            // Id inválido
-            invalidId: {
-              summary:
-                'Id inválido',
-              value: {
-                message:
-                  'Validation failed (numeric string is expected)',
-                error:
-                  'Bad Request',
-                statusCode:
-                  400,
-              },
-            },
-
-            // Propiedad extra
-            extraProperty: {
-              summary:
-                'Propiedad no permitida',
-              value: {
-                message: [
-                  'property recipient should not exist',
-                ],
-                error:
-                  'Bad Request',
-                statusCode:
-                  400,
-              },
-            },
-
-            // Campo vacío
-            emptyTitle: {
-              summary:
-                'Título vacío',
-              value: {
-                message: [
-                  'title should not be empty',
-                ],
-                error:
-                  'Bad Request',
-                statusCode:
-                  400,
-              },
-            },
-          },
-        },
-      },
+    ApiBadRequestResponse({
+      description: 'Id o body inválido',
+      example: invalidIdExample,
     }),
-
-    // Token faltante o inválido
-    ApiResponse({
-      status: 401,
-      description:
-        'No autorizado',
-      schema: {
-        example: {
-          message:
-            'Unauthorized',
-          statusCode:
-            401,
-        },
-      },
-    }),
-
-    // Notificación inexistente o de otro usuario
-    ApiResponse({
-      status: 404,
-      description:
-        'Notificación no encontrada',
-      schema: {
-        example: {
-          message:
-            'Notificación no encontrada',
-          error:
-            'Not Found',
-          statusCode:
-            404,
-        },
-      },
-    }),
+    ApiUnauthorizedResponse({ example: unauthorizedExample }),
+    ApiNotFoundResponse({ example: notificationNotFoundExample }),
   );
 }
 
-// Documenta DELETE /notifications/:id
 export function ApiDeleteNotification() {
   return applyDecorators(
-
-    // Describe qué hace el endpoint
+    notificationModels(),
     ApiOperation({
-      summary:
-        'Eliminar una notificación',
+      summary: 'Eliminar una notificación',
       description:
-        'Elimina una notificación solamente si pertenece al usuario autenticado.',
+        'Elimina una notificación y sus logs solamente si pertenece al usuario autenticado.',
     }),
-
-    // Documenta el id
     ApiParam({
-      name:
-        'id',
-      type:
-        Number,
-      example:
-        28,
-      description:
-        'Id de la notificación',
+      name: 'id',
+      type: Number,
+      example: 1,
+      description: 'Id de la notificación',
     }),
-
-    // Notificación eliminada
-    ApiResponse({
-      status: 200,
-      description:
-        'Notificación eliminada correctamente',
+    ApiOkResponse({
+      description: 'Notificación eliminada correctamente',
       schema: {
+        allOf: [{ $ref: getSchemaPath(DeleteNotificationResponseDto) }],
         example: {
-          message:
-            'Notificación eliminada correctamente',
-          id:
-            28,
+          message: 'Notificación eliminada correctamente',
+          id: 1,
         },
       },
     }),
-
-    // Id inválido
-    ApiResponse({
-      status: 400,
-      description:
-        'Id inválido',
-      schema: {
-        example: {
-          message:
-            'Validation failed (numeric string is expected)',
-          error:
-            'Bad Request',
-          statusCode:
-            400,
-        },
-      },
-    }),
-
-    // Token faltante o inválido
-    ApiResponse({
-      status: 401,
-      description:
-        'No autorizado',
-      schema: {
-        example: {
-          message:
-            'Unauthorized',
-          statusCode:
-            401,
-        },
-      },
-    }),
-
-    // Notificación inexistente o de otro usuario
-    ApiResponse({
-      status: 404,
-      description:
-        'Notificación no encontrada',
-      schema: {
-        example: {
-          message:
-            'Notificación no encontrada',
-          error:
-            'Not Found',
-          statusCode:
-            404,
-        },
-      },
-    }),
+    ApiBadRequestResponse({ example: invalidIdExample }),
+    ApiUnauthorizedResponse({ example: unauthorizedExample }),
+    ApiNotFoundResponse({ example: notificationNotFoundExample }),
   );
 }

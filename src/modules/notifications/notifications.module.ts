@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AuthModule } from '../../auth/auth.module';
 
-import { PrismaModule } from '../../database/prisma.module';
+import { Notification } from '../../database/entities/notification.entity';
+import { NotificationLog } from '../../database/entities/notification-log.entity';
 
 import { UsersModule } from '../users/users.module';
 
@@ -23,13 +25,11 @@ import { NOTIFICATION_SENDERS } from './constants/notification-senders.token';
 @Module({
   imports: [
     AuthModule,
-    PrismaModule,
+    TypeOrmModule.forFeature([Notification, NotificationLog]),
     UsersModule,
   ],
 
-  controllers: [
-    NotificationsController,
-  ],
+  controllers: [NotificationsController],
 
   providers: [
     NotificationsService,
@@ -44,17 +44,9 @@ import { NOTIFICATION_SENDERS } from './constants/notification-senders.token';
         emailSender: EmailSender,
         smsSender: SmsSender,
         pushSender: PushSender,
-      ) => [
-        emailSender,
-        smsSender,
-        pushSender,
-      ],
+      ) => [emailSender, smsSender, pushSender],
 
-      inject: [
-        EmailSender,
-        SmsSender,
-        PushSender,
-      ],
+      inject: [EmailSender, SmsSender, PushSender],
     },
 
     NotificationSenderFactory,
