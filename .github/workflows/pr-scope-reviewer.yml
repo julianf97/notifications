@@ -82,11 +82,17 @@ jobs:
               archivosOmitidosPorLimite: Math.max(archivos.length - limiteArchivos, 0),
             };
 
-            const rutaContexto = path.join(process.env.RUNNER_TEMP, "contexto-pr.json");
+            const rutaContexto = path.join(
+              process.env.RUNNER_TEMP,
+              "contexto-pr.json",
+            );
+
             fs.writeFileSync(rutaContexto, JSON.stringify(contexto));
 
             core.setOutput("ruta_contexto", rutaContexto);
-            core.info(`Se preparó el contexto de ${archivosModificados.length} archivo(s) para el análisis.`);
+            core.info(
+              `Se preparó el contexto de ${archivosModificados.length} archivo(s) para el análisis.`,
+            );
 
       - name: Verificar la configuración de OpenAI
         env:
@@ -161,7 +167,30 @@ jobs:
               additionalProperties: false,
             };
 
-            const contexto = JSON.parse(fs.readFileSync(process.env.RUTA_CONTEXTO, "utf8"));
+            const crearAnalisisDeRespaldo = (limitacion) => ({
+              resumen:
+                "No fue posible completar el análisis automático de alcance para este pull request.",
+              coincidenciasConObjetivo: [],
+              posiblesFueraDeAlcance: [],
+              nivelDeConfianza: "baja",
+              contextoInsuficiente: true,
+              limitacionesDeContexto: [limitacion],
+            });
+
+            const esAnalisisValido = (analisis) =>
+              typeof analisis?.resumen === "string" &&
+              Array.isArray(analisis?.coincidenciasConObjetivo) &&
+              Array.isArray(analisis?.posiblesFueraDeAlcance) &&
+              ["alta", "media", "baja"].includes(
+                analisis?.nivelDeConfianza,
+              ) &&
+              typeof analisis?.contextoInsuficiente === "boolean" &&
+              Array.isArray(analisis?.limitacionesDeContexto);
+
+            const contexto = JSON.parse(
+              fs.readFileSync(process.env.RUTA_CONTEXTO, "utf8"),
+            );
+
             const respuesta = await fetch("https://api.openai.com/v1/responses", {
               method: "POST",
               headers: {
@@ -171,7 +200,7 @@ jobs:
               body: JSON.stringify({
                 model: "gpt-5-mini",
                 store: false,
-                max_output_tokens: 1200,
+                max_output_tokens: 1600,
                 instructions: instruccion,
                 input: JSON.stringify(contexto),
                 text: {
@@ -185,25 +214,89 @@ jobs:
               }),
             });
 
+            let analisis;
+
             if (!respuesta.ok) {
-              throw new Error(`La API de OpenAI respondió con estado ${respuesta.status}.`);
+              core.warning(
+                `OpenAI respondió con estado HTTP ${respuesta.status}. Se publicará un análisis de respaldo.`,
+              );
+
+              analisis = crearAnalisisDeRespaldo(
+                `La API de OpenAI respondió con estado HTTP ${respuesta.status}.`,
+              );
+            } else {
+              const cuerpoRespuesta = await respuesta.json();
+              const contenidos = cuerpoRespuesta.output?.flatMap(
+                (elemento) => elemento.content ?? [],
+              ) ?? [];
+
+              const rechazo = contenidos.find(
+                (contenido) => contenido.type === "refusal",
+              );
+
+              const textoSalida = contenidos.find(
+                (contenido) => contenido.type === "output_text",
+              )?.text;
+
+              if (cuerpoRespuesta.status === "incomplete") {
+                const motivo =
+                  cuerpoRespuesta.incomplete_details?.reason ?? "desconocido";
+
+                core.warning(
+                  `OpenAI devolvió una respuesta incompleta. Motivo: ${motivo}.`,
+                );
+
+                analisis = crearAnalisisDeRespaldo(
+                  `OpenAI no completó la respuesta estructurada. Motivo: ${motivo}.`,
+                );
+              } else if (rechazo) {
+                core.warning(
+                  "OpenAI rechazó el análisis. Se publicará un análisis de respaldo.",
+                );
+
+                analisis = crearAnalisisDeRespaldo(
+                  "OpenAI rechazó generar el análisis estructurado para este pull request.",
+                );
+              } else if (!textoSalida) {
+                const estado = cuerpoRespuesta.status ?? "desconocido";
+
+                core.warning(
+                  `OpenAI no devolvió output_text. Estado recibido: ${estado}.`,
+                );
+
+                analisis = crearAnalisisDeRespaldo(
+                  `OpenAI no devolvió una salida estructurada. Estado recibido: ${estado}.`,
+                );
+              } else {
+                try {
+                  const analisisRecibido = JSON.parse(textoSalida);
+
+                  analisis = esAnalisisValido(analisisRecibido)
+                    ? analisisRecibido
+                    : crearAnalisisDeRespaldo(
+                        "OpenAI devolvió un JSON que no cumple el contrato esperado.",
+                      );
+                } catch {
+                  core.warning(
+                    "No fue posible interpretar el JSON de OpenAI. Se publicará un análisis de respaldo.",
+                  );
+
+                  analisis = crearAnalisisDeRespaldo(
+                    "OpenAI devolvió una respuesta que no pudo interpretarse como JSON.",
+                  );
+                }
+              }
             }
 
-            const cuerpoRespuesta = await respuesta.json();
-            const textoSalida = cuerpoRespuesta.output
-              ?.flatMap((elemento) => elemento.content ?? [])
-              .find((contenido) => contenido.type === "output_text")?.text;
-
-            if (!textoSalida) {
-              throw new Error("OpenAI no devolvió texto estructurado para el análisis.");
-            }
-
-            const analisis = JSON.parse(textoSalida);
-            const rutaAnalisis = path.join(process.env.RUNNER_TEMP, "analisis-pr.json");
+            const rutaAnalisis = path.join(
+              process.env.RUNNER_TEMP,
+              "analisis-pr.json",
+            );
 
             fs.writeFileSync(rutaAnalisis, JSON.stringify(analisis));
+
             core.setOutput("ruta_analisis", rutaAnalisis);
-            core.info("El análisis de alcance se recibió con formato estructurado.");
+            core.info("El análisis de alcance está listo para publicar.");
 
       - name: Publicar el análisis en el pull request
         uses: actions/github-script@v8
@@ -214,9 +307,15 @@ jobs:
             const fs = require("fs");
 
             const marcador = "<!-- pr-scope-reviewer -->";
-            const analisis = JSON.parse(fs.readFileSync(process.env.RUTA_ANALISIS, "utf8"));
+            const analisis = JSON.parse(
+              fs.readFileSync(process.env.RUTA_ANALISIS, "utf8"),
+            );
+
             const lista = (elementos, vacio) =>
-              elementos.length === 0 ? vacio : elementos.map((elemento) => `- ${elemento}`).join("\n");
+              elementos.length === 0
+                ? vacio
+                : elementos.map((elemento) => `- ${elemento}`).join("\n");
+
             const posiblesFueraDeAlcance =
               analisis.posiblesFueraDeAlcance.length === 0
                 ? "No se detectaron cambios posiblemente fuera de alcance."
@@ -231,7 +330,10 @@ jobs:
             ${analisis.resumen}
 
             ### Coincidencias con el objetivo
-            ${lista(analisis.coincidenciasConObjetivo, "No se encontró evidencia suficiente de coincidencia.")}
+            ${lista(
+              analisis.coincidenciasConObjetivo,
+              "No se encontró evidencia suficiente de coincidencia.",
+            )}
 
             ### Posibles cambios fuera de alcance
             ${posiblesFueraDeAlcance}
@@ -240,20 +342,27 @@ jobs:
             ${analisis.nivelDeConfianza}
 
             ### Limitaciones de contexto
-            ${lista(analisis.limitacionesDeContexto, "No se informaron limitaciones de contexto.")}
+            ${lista(
+              analisis.limitacionesDeContexto,
+              "No se informaron limitaciones de contexto.",
+            )}
 
             > Este análisis es informativo y no bloquea el merge.`;
 
-            const { data: identidad } = await github.rest.users.getAuthenticated();
-            const comentarios = await github.paginate(github.rest.issues.listComments, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              per_page: 100,
-            });
+            const comentarios = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                per_page: 100,
+              },
+            );
+
             const comentarioExistente = comentarios.find(
               (comentario) =>
-                comentario.user.id === identidad.id && comentario.body?.includes(marcador),
+                comentario.user.login === "github-actions[bot]" &&
+                comentario.body?.includes(marcador),
             );
 
             if (comentarioExistente) {
@@ -263,6 +372,7 @@ jobs:
                 comment_id: comentarioExistente.id,
                 body: comentario,
               });
+
               core.info("Se actualizó el comentario existente del revisor.");
             } else {
               await github.rest.issues.createComment({
@@ -271,5 +381,6 @@ jobs:
                 issue_number: context.payload.pull_request.number,
                 body: comentario,
               });
+
               core.info("Se publicó el comentario del revisor.");
             }
