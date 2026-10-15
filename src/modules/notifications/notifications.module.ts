@@ -18,6 +18,8 @@ import { SmsSender } from './senders/sms.sender';
 
 import { PushSender } from './senders/push.sender';
 
+import { WhatsappSender } from './senders/whatsapp.sender';
+
 import { NotificationSenderFactory } from './factories/notification-sender.factory';
 
 import { NOTIFICATION_SENDERS } from './constants/notification-senders.token';
@@ -36,6 +38,7 @@ import { NOTIFICATION_SENDERS } from './constants/notification-senders.token';
     EmailSender,
     SmsSender,
     PushSender,
+    WhatsappSender,
 
     {
       provide: NOTIFICATION_SENDERS,
@@ -44,9 +47,10 @@ import { NOTIFICATION_SENDERS } from './constants/notification-senders.token';
         emailSender: EmailSender,
         smsSender: SmsSender,
         pushSender: PushSender,
-      ) => [emailSender, smsSender, pushSender],
+        whatsappSender: WhatsappSender,
+      ) => [emailSender, smsSender, pushSender, whatsappSender],
 
-      inject: [EmailSender, SmsSender, PushSender],
+      inject: [EmailSender, SmsSender, PushSender, WhatsappSender],
     },
 
     NotificationSenderFactory,
