@@ -244,7 +244,6 @@ jobs:
 
             > Este análisis es informativo y no bloquea el merge.`;
 
-            const { data: identidad } = await github.rest.users.getAuthenticated();
             const comentarios = await github.paginate(github.rest.issues.listComments, {
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -253,7 +252,8 @@ jobs:
             });
             const comentarioExistente = comentarios.find(
               (comentario) =>
-                comentario.user.id === identidad.id && comentario.body?.includes(marcador),
+                comentario.user.login === "github-actions[bot]" &&
+                comentario.body?.includes(marcador),
             );
 
             if (comentarioExistente) {
