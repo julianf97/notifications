@@ -13,7 +13,7 @@ export class CreateNotificationResponseDto {
   @ApiProperty({ example: 'Contenido de prueba por Email' })
   content!: string;
 
-  @ApiProperty({ enum: ['email', 'sms', 'push'], example: 'email' })
+  @ApiProperty({ enum: ['email', 'sms', 'push', 'whatsapp'], example: 'email' })
   channel!: string;
 
   @ApiProperty({
